@@ -1,103 +1,59 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const Ride = require('../models/Ride');
-const Driver = require('../models/Driver');
-const Notification = require('../models/Notification');
+const RideRequest = require("../models/RideRequest");
+const RideMatchSuggestion = require("../models/RideMatchSuggestion");
+const User = require("../models/User");
+const Driver = require("../models/Driver");
 
-// Create a new ride request
-router.post('/', async (req, res) => {
+// Endpoint to initiate a new ride request
+router.post("/request", async (req, res) => {
   try {
-    const { passenger, pickupLocation, dropoffLocation } = req.body;
-    
-    // Find the nearest available driver
-    const nearestDrivers = await Driver.find({
-      available: true,
-      currentLocation: {
-        $near: {
-          $geometry: {
-            type: 'Point',
-            coordinates: pickupLocation.coordinates
-          }
-        }
-      }
-    }).limit(1);
-    
-    if (nearestDrivers.length === 0) {
-      return res.status(404).json({ message: 'No drivers available' });
-    }
-    
-    const driver = nearestDrivers[0];
-    
-    // Create the ride
-    const ride = new Ride({
-      passenger,
-      driver: driver._id,
-      pickupLocation,
-      dropoffLocation
+    const newRideRequest = new RideRequest(req.body);
+    await newRideRequest.save();
+    res.status(202).json({
+      rideRequestId: newRideRequest._id,
+      status: "pending_ai_matching",
+      message: "Your ride request is being processed for optimal matching.",
     });
-    
-    await ride.save();
-    
-    // Create notification for driver
-    const notification = new Notification({
-      driver: driver._id,
-      ride: ride._id,
-      message: `New ride request from ${passenger.name}`
-    });
-    
-    await notification.save();
-    
-    res.status(201).json(ride);
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
 });
 
-// Update ride status
-router.put('/:id/status', async (req, res) => {
+// Endpoint for rider to accept/reject a match
+router.post("/:rideId/accept-match", async (req, res) => {
   try {
-    const { status } = req.body;
-    
-    const ride = await Ride.findByIdAndUpdate(
-      req.params.id,
-      { 
-        status,
-        updatedAt: Date.now()
-      },
-      { new: true }
-    );
-    
-    if (!ride) {
-      return res.status(404).json({ message: 'Ride not found' });
-    }
-    
-    res.json(ride);
+    const { riderId, acceptedMatch } = req.body;
+    const rideId = req.params.rideId;
+
+    await RideMatchSuggestion.findByIdAndUpdate(rideId, { status: acceptedMatch ? "accepted" : "rejected" });
+
+    const io = require("../socket").getIO();
+    io.to(rideId).emit("riderMatchStatusUpdate", {
+      riderId,
+      status: acceptedMatch ? "accepted" : "rejected",
+      message: acceptedMatch ? "Rider accepted the match." : "Rider rejected the match.",
+    });
+
+    res.status(200).json({ status: "success", message: "Match acceptance status updated." });
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
 });
 
-// Get passenger's ride history
-router.get('/passenger/:name', async (req, res) => {
+// Endpoint to get active match suggestions for a rider
+router.get("/active-matches/:riderId", async (req, res) => {
   try {
-    const rides = await Ride.find({
-      'passenger.name': req.params.name
-    }).sort({ createdAt: -1 });
-    
-    res.json(rides);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
+    const activeMatches = await RideMatchSuggestion.find({
+      potentialRiders: { $elemMatch: { riderId: req.params.riderId } },
+      status: "pending",
+    }).populate("suggestedDriverId").populate("potentialRiders.riderId"); // Populate driver and rider details
 
-// Get all rides (for admin)
-router.get('/', async (req, res) => {
-  try {
-    const rides = await Ride.find().populate('driver');
-    res.json(rides);
+    res.status(200).json(activeMatches);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });
 
 module.exports = router;
+

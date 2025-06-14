@@ -9,6 +9,7 @@ require('dotenv').config();
 const driverRoutes = require('./routes/drivers');
 const rideRoutes = require('./routes/rides');
 const notificationRoutes = require('./routes/notifications');
+const aiRoutes = require('./routes/ai'); // New AI routes
 
 const app = express();
 const server = http.createServer(app);
@@ -23,6 +24,7 @@ app.use('/api/users', require('./routes/users'));
 app.use('/api/drivers', driverRoutes);
 app.use('/api/rides', rideRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/ai', aiRoutes); // Use new AI routes
 
 // MongoDB Connection
 mongoose.connect(process.env.MONGODB_URI)
@@ -60,3 +62,5 @@ const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`الخادم يعمل على المنفذ ${PORT}`);
 });
+
+
