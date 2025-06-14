@@ -5,7 +5,9 @@ const RideMatchSuggestion = require("../models/RideMatchSuggestion");
 const User = require("../models/User");
 const Driver = require("../models/Driver");
 const { body, validationResult } = require("express-validator");
-const aiMatchingService = require("../services/aiMatchingService");
+// const aiMatchingService = require("../services/aiMatchingService");
+const locationService = require("../services/locationService");
+const Trip = require("../models/Trip");
 
 // Endpoint to initiate a new ride request
 router.post(
@@ -129,33 +131,11 @@ router.post(
       });
       await newRideRequest.save();
 
-      // الحصول على المطابقات من الذكاء الاصطناعي
-      const matches = await aiMatchingService.findOptimalMatches(
-        newRideRequest
-      );
-
-      // حفظ المطابقات في قاعدة البيانات
-      const savedMatches = await Promise.all(
-        matches.map(async (match) => {
-          return await match.save();
-        })
-      );
-
+      // تم إزالة منطق الذكاء الاصطناعي للمطابقة
       res.status(200).json({
+        message: "Ride request created successfully, AI matching skipped.",
         rideRequestId: newRideRequest._id,
-        matches: savedMatches.map((match) => ({
-          matchId: match._id,
-          driver: match.suggestedDriverId,
-          estimatedDelay:
-            match.potentialRiders &&
-            match.potentialRiders.length > 0 &&
-            match.potentialRiders[0].estimatedDelayMinutes
-              ? match.potentialRiders[0].estimatedDelayMinutes
-              : 0,
-          totalEstimatedTime: match.optimizedRoute.estimatedTime,
-          totalEstimatedCost: match.estimatedPrice,
-          optimizedRoute: match.optimizedRoute,
-        })),
+        status: "pending",
       });
     } catch (error) {
       res.status(500).json({ message: error.message });
@@ -256,36 +236,97 @@ router.put(
 router.post("/driver/:driverId/location", async (req, res) => {
   try {
     const { driverId } = req.params;
-    const { location } = req.body;
+    const { location, tripId } = req.body;
 
-    const driver = await aiMatchingService.updateDriverLocation(
+    // التأكد من وجود tripId وإرسال التحديثات لجميع الركاب
+    if (!tripId) {
+      return res.status(400).json({
+        success: false,
+        message: "Trip ID is required in the request body.",
+      });
+    }
+
+    const success = await locationService.updateDriverLocation(
       driverId,
+      tripId,
       location
     );
-    res.json({ success: true, driver });
+
+    if (success) {
+      res.json({ success: true, message: "Driver location updated." });
+    } else {
+      res
+        .status(500)
+        .json({ success: false, message: "Failed to update driver location." });
+    }
   } catch (error) {
     console.error("خطأ في تحديث موقع السائق:", error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// تحديث حالة الرحلة
-router.put("/:rideId/status", async (req, res) => {
-  try {
-    const { rideId } = req.params;
-    const { status, location } = req.body;
+// تحديث حالة الرحلة (Trip)
+router.put(
+  "/:tripId/status",
+  [
+    body("status")
+      .isIn(["pending", "in_progress", "completed", "cancelled"])
+      .withMessage("Invalid trip status"),
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
 
-    const ride = await aiMatchingService.updateRideStatus(
-      rideId,
-      status,
-      location
-    );
-    res.json({ success: true, ride });
-  } catch (error) {
-    console.error("خطأ في تحديث حالة الرحلة:", error);
-    res.status(500).json({ error: error.message });
+      const { status } = req.body;
+      const { tripId } = req.params;
+
+      const trip = await Trip.findById(tripId);
+      if (!trip) {
+        return res.status(404).json({ message: "Trip not found" });
+      }
+
+      const oldStatus = trip.status; // احتفظ بالحالة القديمة للمقارنة
+
+      trip.status = status;
+
+      // منطق بدء/إيقاف تتبع الموقع
+      if (status === "in_progress" && oldStatus !== "in_progress") {
+        // ابدأ تتبع الموقع إذا كانت الرحلة قد بدأت للتو
+        // يجب أن نمرر driverId و tripId من كائن الرحلة
+        if (trip.driver) {
+          const intervalId = locationService.startLocationTracking(
+            trip.driver.toString(),
+            trip._id.toString()
+          );
+          trip.locationTrackingIntervalId = intervalId; // تخزين الـ intervalId في الرحلة
+        } else {
+          console.warn(
+            "Cannot start location tracking: Driver not found for this trip."
+          );
+        }
+      } else if (
+        (status === "completed" || status === "cancelled") &&
+        oldStatus === "in_progress"
+      ) {
+        // أوقف تتبع الموقع إذا انتهت الرحلة أو ألغيت
+        if (trip.locationTrackingIntervalId) {
+          locationService.stopLocationTracking(trip.locationTrackingIntervalId);
+          trip.locationTrackingIntervalId = undefined; // إزالة الـ intervalId
+        }
+      }
+
+      await trip.save();
+
+      res.json({ message: "Trip status updated successfully" });
+    } catch (error) {
+      console.error("Error updating trip status:", error);
+      res.status(500).json({ message: "Error updating trip status" });
+    }
   }
-});
+);
 
 module.exports = router;
 

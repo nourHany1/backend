@@ -14,19 +14,19 @@ async function updateDriverLocation(driverId, tripId, location) {
     // تحديث موقع السائق في نموذج المستخدم
     await User.findByIdAndUpdate(driverId, {
       currentLocation: {
-        type: 'Point',
-        coordinates: [location.longitude, location.latitude],
-        lastUpdated: new Date()
-      }
+        type: "Point",
+        coordinates: [location.coordinates[0], location.coordinates[1]],
+        lastUpdated: new Date(),
+      },
     });
 
     // تحديث موقع السائق في الرحلة النشطة
     const trip = await Trip.findById(tripId);
-    if (trip && trip.status === 'in_progress') {
+    if (trip && trip.status === "in_progress") {
       trip.driverLocation = {
-        type: 'Point',
-        coordinates: [location.longitude, location.latitude],
-        lastUpdated: new Date()
+        type: "Point",
+        coordinates: [location.coordinates[0], location.coordinates[1]],
+        lastUpdated: new Date(),
       };
       await trip.save();
 
@@ -35,27 +35,27 @@ async function updateDriverLocation(driverId, tripId, location) {
         try {
           const io = socketIO.getIO();
           if (io) {
-            trip.riders.forEach(rider => {
-              io.to(rider.user.toString()).emit('driverLocationUpdate', {
+            trip.riders.forEach((rider) => {
+              io.to(rider.user.toString()).emit("driverLocationUpdate", {
                 tripId: trip._id,
                 location: {
-                  latitude: location.latitude,
-                  longitude: location.longitude
+                  latitude: location.coordinates[1],
+                  longitude: location.coordinates[0],
                 },
-                timestamp: new Date()
+                timestamp: new Date(),
               });
             });
           }
         } catch (error) {
           // تجاهل أخطاء Socket.IO في بيئة الاختبار
-          console.log('تم تحديث الموقع في قاعدة البيانات فقط');
+          console.log("تم تحديث الموقع في قاعدة البيانات فقط");
         }
       }
     }
 
     return true;
   } catch (error) {
-    console.error('خطأ في تحديث موقع السائق:', error);
+    console.error("خطأ في تحديث موقع السائق:", error);
     return false;
   }
 }
@@ -66,8 +66,11 @@ function startLocationTracking(driverId, tripId, updateInterval = 5000) {
     // هنا سيتم الحصول على الموقع الحالي من تطبيق Flutter
     // في الوقت الحالي، سنستخدم موقع وهمي للاختبار
     const mockLocation = {
-      latitude: 24.7136 + (Math.random() * 0.01),
-      longitude: 46.6753 + (Math.random() * 0.01)
+      type: "Point",
+      coordinates: [
+        46.6753 + Math.random() * 0.01,
+        24.7136 + Math.random() * 0.01,
+      ],
     };
 
     const success = await updateDriverLocation(driverId, tripId, mockLocation);

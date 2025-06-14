@@ -13,7 +13,7 @@ router.post('/', async (req, res) => {
     // بدء تتبع موقع السائق
     const trackingInterval = startLocationTracking(trip.driver, trip._id);
     
-    res.status(201).json({ trip, trackingInterval });
+    res.status(201).json({ trip });
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
