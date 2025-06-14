@@ -45,4 +45,6 @@ const rideMatchSuggestionSchema = new mongoose.Schema({
   },
 });
 
+rideMatchSuggestionSchema.index({ "optimizedRoute.coordinates": "2dsphere" });
+
 module.exports = mongoose.model("RideMatchSuggestion", rideMatchSuggestionSchema);
