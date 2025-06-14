@@ -146,7 +146,12 @@ router.post(
         matches: savedMatches.map((match) => ({
           matchId: match._id,
           driver: match.suggestedDriverId,
-          estimatedDelay: match.potentialRiders[0].estimatedDelayMinutes,
+          estimatedDelay:
+            match.potentialRiders &&
+            match.potentialRiders.length > 0 &&
+            match.potentialRiders[0].estimatedDelayMinutes
+              ? match.potentialRiders[0].estimatedDelayMinutes
+              : 0,
           totalEstimatedTime: match.optimizedRoute.estimatedTime,
           totalEstimatedCost: match.estimatedPrice,
           optimizedRoute: match.optimizedRoute,
@@ -165,7 +170,7 @@ router.get("/ongoing-rides", async (req, res) => {
 
     const ongoingRides = await RideMatchSuggestion.find({
       status: "accepted",
-      "optimizedRoute.coordinates": {
+      currentLocation: {
         $near: {
           $geometry: {
             type: "Point",
@@ -224,7 +229,12 @@ router.put(
           matches: savedMatches.map((match) => ({
             matchId: match._id,
             driver: match.suggestedDriverId,
-            estimatedDelay: match.potentialRiders[0].estimatedDelayMinutes,
+            estimatedDelay:
+              match.potentialRiders &&
+              match.potentialRiders.length > 0 &&
+              match.potentialRiders[0].estimatedDelayMinutes
+                ? match.potentialRiders[0].estimatedDelayMinutes
+                : 0,
             totalEstimatedTime: match.optimizedRoute.estimatedTime,
             totalEstimatedCost: match.estimatedPrice,
             optimizedRoute: match.optimizedRoute,
@@ -241,6 +251,41 @@ router.put(
     }
   }
 );
+
+// تحديث موقع السائق
+router.post("/driver/:driverId/location", async (req, res) => {
+  try {
+    const { driverId } = req.params;
+    const { location } = req.body;
+
+    const driver = await aiMatchingService.updateDriverLocation(
+      driverId,
+      location
+    );
+    res.json({ success: true, driver });
+  } catch (error) {
+    console.error("خطأ في تحديث موقع السائق:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// تحديث حالة الرحلة
+router.put("/:rideId/status", async (req, res) => {
+  try {
+    const { rideId } = req.params;
+    const { status, location } = req.body;
+
+    const ride = await aiMatchingService.updateRideStatus(
+      rideId,
+      status,
+      location
+    );
+    res.json({ success: true, ride });
+  } catch (error) {
+    console.error("خطأ في تحديث حالة الرحلة:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 module.exports = router;
 

@@ -612,4 +612,85 @@ describe("Rides API Tests", () => {
       expect(finalRequest.status).toBe("pending");
     });
   });
+
+  describe("Real-time Location Updates", () => {
+    let testDriver;
+    let testRide;
+
+    beforeEach(async () => {
+      // إنشاء سائق للاختبار
+      testDriver = await Driver.create({
+        name: "سائق الاختبار",
+        phone: "1234567890",
+        currentLocation: {
+          type: "Point",
+          coordinates: [31.9539, 35.9106],
+        },
+        isAvailable: true,
+      });
+
+      // إنشاء رحلة للاختبار
+      testRide = await RideMatchSuggestion.create({
+        rideRequestId: testRideRequest._id,
+        suggestedDriverId: testDriver._id,
+        status: "pending",
+        currentLocation: {
+          type: "Point",
+          coordinates: [31.9539, 35.9106],
+        },
+        expiresAt: new Date(Date.now() + 3600000), // تنتهي بعد ساعة
+        estimatedArrival: 15,
+        estimatedPrice: 50,
+        optimizedRoute: {
+          type: "LineString",
+          coordinates: [
+            [31.9539, 35.9106],
+            [31.954, 35.9107],
+          ],
+          totalDistance: 2.5,
+          trafficImpact: 1.0,
+          estimatedTime: 15,
+        },
+      });
+    });
+
+    it("should update driver location and notify rider", async () => {
+      const newLocation = {
+        latitude: 31.954,
+        longitude: 35.9107,
+      };
+
+      const response = await request(app)
+        .post(`/rides/driver/${testDriver._id}/location`)
+        .send({ location: newLocation });
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.driver.currentLocation.coordinates).toEqual([
+        newLocation.longitude,
+        newLocation.latitude,
+      ]);
+    });
+
+    it("should update ride status and notify all parties", async () => {
+      const newStatus = "accepted";
+      const newLocation = {
+        latitude: 31.954,
+        longitude: 35.9107,
+      };
+
+      const response = await request(app)
+        .put(`/rides/${testRide._id}/status`)
+        .send({ status: newStatus, location: newLocation });
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.ride.status).toBe(newStatus);
+      expect(response.body.ride.currentLocation).toBeDefined();
+      expect(response.body.ride.currentLocation.coordinates).toEqual([
+        newLocation.longitude,
+        newLocation.latitude,
+      ]);
+    });
+  });
 });

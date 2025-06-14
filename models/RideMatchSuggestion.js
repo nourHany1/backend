@@ -94,6 +94,21 @@ const rideMatchSuggestionSchema = new mongoose.Schema(
       type: Date,
       required: true,
     },
+    currentLocation: {
+      type: {
+        type: String,
+        enum: ["Point"],
+        default: "Point",
+      },
+      coordinates: {
+        type: [Number],
+        required: true,
+      },
+    },
+    estimatedArrival: {
+      type: Number,
+      required: true,
+    },
   },
   {
     timestamps: true,
@@ -105,6 +120,7 @@ rideMatchSuggestionSchema.index({ status: 1 });
 rideMatchSuggestionSchema.index({ rideRequestId: 1 });
 rideMatchSuggestionSchema.index({ suggestedDriverId: 1 });
 rideMatchSuggestionSchema.index({ optimizedRoute: "2dsphere" });
+rideMatchSuggestionSchema.index({ currentLocation: "2dsphere" });
 
 // إضافة middleware لتعيين تاريخ انتهاء الصلاحية
 rideMatchSuggestionSchema.pre("save", function (next) {
