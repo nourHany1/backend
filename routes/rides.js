@@ -26,6 +26,7 @@ router.post(
         return res.status(400).json({ errors: errors.array() });
       }
 
+      // إنشاء طلب ركوب فقط بدون أي مطابقة
       const newRideRequest = new RideRequest(req.body);
       await newRideRequest.save();
       res.status(202).json({
@@ -117,7 +118,7 @@ router.post(
         passengers,
       } = req.body;
 
-      // Create a new ride request
+      // إنشاء طلب ركوب جديد
       const newRideRequest = new RideRequest({
         pickupLocation,
         dropoffLocation,
@@ -128,19 +129,26 @@ router.post(
       });
       await newRideRequest.save();
 
-      // Get AI-powered matches
+      // الحصول على المطابقات من الذكاء الاصطناعي
       const matches = await aiMatchingService.findOptimalMatches(
         newRideRequest
       );
 
+      // حفظ المطابقات في قاعدة البيانات
+      const savedMatches = await Promise.all(
+        matches.map(async (match) => {
+          return await match.save();
+        })
+      );
+
       res.status(200).json({
         rideRequestId: newRideRequest._id,
-        matches: matches.map((match) => ({
+        matches: savedMatches.map((match) => ({
           matchId: match._id,
           driver: match.suggestedDriverId,
           estimatedDelay: match.potentialRiders[0].estimatedDelayMinutes,
-          totalEstimatedTime: match.totalEstimatedTime,
-          totalEstimatedCost: match.totalEstimatedCost,
+          totalEstimatedTime: match.optimizedRoute.estimatedTime,
+          totalEstimatedCost: match.estimatedPrice,
           optimizedRoute: match.optimizedRoute,
         })),
       });
@@ -202,10 +210,25 @@ router.put(
 
       // Trigger AI re-matching if needed
       if (preferences.allowSharing !== undefined) {
+        // حذف جميع المطابقات القديمة لهذا الطلب
+        await RideMatchSuggestion.deleteMany({ rideRequestId: rideId });
+        // إعادة حساب المطابقات
         const matches = await aiMatchingService.findOptimalMatches(updatedRide);
+        const savedMatches = await Promise.all(
+          matches.map(async (match) => {
+            return await match.save();
+          })
+        );
         return res.status(200).json({
           message: "Preferences updated and new matches found",
-          matches,
+          matches: savedMatches.map((match) => ({
+            matchId: match._id,
+            driver: match.suggestedDriverId,
+            estimatedDelay: match.potentialRiders[0].estimatedDelayMinutes,
+            totalEstimatedTime: match.optimizedRoute.estimatedTime,
+            totalEstimatedCost: match.estimatedPrice,
+            optimizedRoute: match.optimizedRoute,
+          })),
         });
       }
 
