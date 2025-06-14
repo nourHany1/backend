@@ -42,7 +42,7 @@ const userSchema = new mongoose.Schema({
       default: Date.now
     }
   },
-  // معلومات إضافية للسائق
+  // Additional driver information
   driverInfo: {
     carModel: String,
     carColor: String,
@@ -52,7 +52,7 @@ const userSchema = new mongoose.Schema({
       default: false
     }
   },
-  // معلومات إضافية للراكب
+  // Additional rider information
   riderInfo: {
     preferredPaymentMethod: {
       type: String,
@@ -72,7 +72,7 @@ const userSchema = new mongoose.Schema({
       }
     }]
   },
-  // سجل الرحلات
+  // Trip history
   tripHistory: [{
     trip: {
       type: mongoose.Schema.Types.ObjectId,
@@ -91,7 +91,7 @@ const userSchema = new mongoose.Schema({
       default: Date.now
     }
   }],
-  // إعدادات الإشعارات
+  // Notification settings
   notifications: {
     pushEnabled: {
       type: Boolean,
@@ -104,7 +104,7 @@ const userSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-// فهارس للبحث السريع
+// Indexes for quick search
 userSchema.index({ currentLocation: '2dsphere' });
 userSchema.index({ 'riderInfo.savedLocations.location': '2dsphere' });
 

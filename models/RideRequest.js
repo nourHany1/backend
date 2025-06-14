@@ -46,7 +46,7 @@ const rideRequestSchema = new mongoose.Schema(
       },
       maxDelay: {
         type: Number,
-        default: 10, // دقائق
+        default: 10, // minutes
       },
       maxPassengers: {
         type: Number,
@@ -60,7 +60,7 @@ const rideRequestSchema = new mongoose.Schema(
         },
         maxDetour: {
           type: Number,
-          default: 5, // كيلومترات
+          default: 5, // kilometers
         },
       },
       comfortLevel: {
@@ -96,11 +96,11 @@ const rideRequestSchema = new mongoose.Schema(
   }
 );
 
-// إضافة فهرس جغرافي
+// Add geospatial index
 rideRequestSchema.index({ pickupLocation: "2dsphere" });
 rideRequestSchema.index({ dropoffLocation: "2dsphere" });
 
-// إضافة فهرس للبحث السريع
+// Add index for quick search
 rideRequestSchema.index({ status: 1, createdAt: -1 });
 rideRequestSchema.index({ riderId: 1, status: 1 });
 

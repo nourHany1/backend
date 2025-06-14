@@ -12,23 +12,23 @@ module.exports = {
     });
 
     io.on('connection', (socket) => {
-      console.log('مستخدم جديد متصل:', socket.id);
+      console.log("New user connected:", socket.id);
 
-      // انضمام المستخدم إلى غرفة خاصة به
-      socket.on('join', (userId) => {
+      // Join user to their private room
+      socket.on("join", (userId) => {
         socket.join(userId);
-        console.log(`المستخدم ${userId} انضم إلى غرفته الخاصة`);
+        console.log(`User ${userId} joined their private room`);
       });
 
-      // مغادرة المستخدم لغرفته
-      socket.on('leave', (userId) => {
+      // User leaves their room
+      socket.on("leave", (userId) => {
         socket.leave(userId);
-        console.log(`المستخدم ${userId} غادر غرفته`);
+        console.log(`User ${userId} left their room`);
       });
 
-      // قطع الاتصال
-      socket.on('disconnect', () => {
-        console.log('مستخدم قطع الاتصال:', socket.id);
+      // Disconnect
+      socket.on("disconnect", () => {
+        console.log("User disconnected:", socket.id);
       });
     });
 
@@ -36,7 +36,7 @@ module.exports = {
   },
   getIO: () => {
     if (!io) {
-      throw new Error('Socket.IO غير مهيأ');
+      throw new Error('Socket.IO not initialized');
     }
     return io;
   }

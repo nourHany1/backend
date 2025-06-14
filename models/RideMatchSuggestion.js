@@ -102,7 +102,7 @@ const rideMatchSuggestionSchema = new mongoose.Schema(
       },
       coordinates: {
         type: [Number],
-        // قم بتعليق هذا السطر مؤقتًا:
+        // Temporarily comment out this line:
         // required: true,
       },
     },
@@ -116,7 +116,7 @@ const rideMatchSuggestionSchema = new mongoose.Schema(
   }
 );
 
-// إنشاء فهارس للبحث السريع
+// Create indexes for quick search
 rideMatchSuggestionSchema.index({ status: 1 });
 rideMatchSuggestionSchema.index({ rideRequestId: 1 });
 rideMatchSuggestionSchema.index({ suggestedDriverId: 1 });
@@ -124,10 +124,10 @@ rideMatchSuggestionSchema.index({ suggestedDriverId: 1 });
 // rideMatchSuggestionSchema.index({ optimizedRoute: "2dsphere" });
 rideMatchSuggestionSchema.index({ currentLocation: "2dsphere" });
 
-// إضافة middleware لتعيين تاريخ انتهاء الصلاحية
+// Add middleware to set expiration date
 rideMatchSuggestionSchema.pre("save", function (next) {
   if (!this.expiresAt) {
-    this.expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 دقائق من الآن
+    this.expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes from now
   }
   next();
 });

@@ -4,13 +4,13 @@ const Trip = require('../models/Trip');
 const User = require('../models/User');
 const { startLocationTracking, stopLocationTracking } = require('../services/locationService');
 
-// إنشاء رحلة جديدة
+// Create a new trip
 router.post('/', async (req, res) => {
   try {
     const trip = new Trip(req.body);
     await trip.save();
     
-    // بدء تتبع موقع السائق
+    // Start driver location tracking
     const trackingInterval = startLocationTracking(trip.driver, trip._id);
     
     res.status(201).json({ trip });
@@ -19,7 +19,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-// البحث عن رحلات قريبة
+// Search for nearby trips
 router.get('/nearby', async (req, res) => {
   try {
     const { longitude, latitude, maxDistance = 5000 } = req.query;
@@ -43,17 +43,17 @@ router.get('/nearby', async (req, res) => {
   }
 });
 
-// إضافة راكب إلى الرحلة
+// Add a rider to the trip
 router.post('/:tripId/riders', async (req, res) => {
   try {
     const trip = await Trip.findById(req.params.tripId);
     if (!trip) {
-      return res.status(404).json({ message: 'الرحلة غير موجودة' });
+      return res.status(404).json({ message: 'Trip not found' });
     }
 
     const rider = await User.findById(req.body.userId);
     if (!rider) {
-      return res.status(404).json({ message: 'المستخدم غير موجود' });
+      return res.status(404).json({ message: 'User not found' });
     }
 
     trip.riders.push({
@@ -69,17 +69,17 @@ router.post('/:tripId/riders', async (req, res) => {
   }
 });
 
-// تحديث حالة الرحلة
+// Update trip status
 router.patch('/:tripId/status', async (req, res) => {
   try {
     const trip = await Trip.findById(req.params.tripId);
     if (!trip) {
-      return res.status(404).json({ message: 'الرحلة غير موجودة' });
+      return res.status(404).json({ message: 'Trip not found' });
     }
 
     trip.status = req.body.status;
     
-    // إذا تم إكمال الرحلة، نقوم بإيقاف تتبع الموقع
+    // If the trip is completed, stop location tracking
     if (req.body.status === 'completed') {
       stopLocationTracking(trip.trackingInterval);
     }
@@ -91,17 +91,17 @@ router.patch('/:tripId/status', async (req, res) => {
   }
 });
 
-// تحديث حالة راكب معين
+// Update specific rider status
 router.patch('/:tripId/riders/:riderId/status', async (req, res) => {
   try {
     const trip = await Trip.findById(req.params.tripId);
     if (!trip) {
-      return res.status(404).json({ message: 'الرحلة غير موجودة' });
+      return res.status(404).json({ message: 'Trip not found' });
     }
 
     const rider = trip.riders.id(req.params.riderId);
     if (!rider) {
-      return res.status(404).json({ message: 'الراكب غير موجود في هذه الرحلة' });
+      return res.status(404).json({ message: 'Rider not found in this trip' });
     }
 
     rider.status = req.body.status;
@@ -112,7 +112,7 @@ router.patch('/:tripId/riders/:riderId/status', async (req, res) => {
   }
 });
 
-// الحصول على تفاصيل الرحلة
+// Get trip details
 router.get('/:tripId', async (req, res) => {
   try {
     const trip = await Trip.findById(req.params.tripId)
@@ -120,7 +120,7 @@ router.get('/:tripId', async (req, res) => {
       .populate('riders.user', 'name phone currentLocation');
     
     if (!trip) {
-      return res.status(404).json({ message: 'الرحلة غير موجودة' });
+      return res.status(404).json({ message: 'Trip not found' });
     }
 
     res.json(trip);

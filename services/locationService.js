@@ -5,13 +5,13 @@ let socketIO;
 try {
   socketIO = require('../socket');
 } catch (error) {
-  console.log('ملاحظة: Socket.IO غير متوفر في بيئة الاختبار');
+  console.log('Note: Socket.IO not available in test environment');
 }
 
-// تحديث موقع السائق
+// Update driver location
 async function updateDriverLocation(driverId, tripId, location) {
   try {
-    // تحديث موقع السائق في نموذج المستخدم
+    // Update driver location in User model
     await User.findByIdAndUpdate(driverId, {
       currentLocation: {
         type: "Point",
@@ -20,7 +20,7 @@ async function updateDriverLocation(driverId, tripId, location) {
       },
     });
 
-    // تحديث موقع السائق في الرحلة النشطة
+    // Update driver location in active trip
     const trip = await Trip.findById(tripId);
     if (trip && trip.status === "in_progress") {
       trip.driverLocation = {
@@ -30,7 +30,7 @@ async function updateDriverLocation(driverId, tripId, location) {
       };
       await trip.save();
 
-      // إرسال تحديث الموقع لجميع الركاب في الرحلة
+      // Send location update to all riders in the trip
       if (socketIO) {
         try {
           const io = socketIO.getIO();
@@ -47,24 +47,24 @@ async function updateDriverLocation(driverId, tripId, location) {
             });
           }
         } catch (error) {
-          // تجاهل أخطاء Socket.IO في بيئة الاختبار
-          console.log("تم تحديث الموقع في قاعدة البيانات فقط");
+          // Ignore Socket.IO errors in test environment
+          console.log("Location updated in database only");
         }
       }
     }
 
     return true;
   } catch (error) {
-    console.error("خطأ في تحديث موقع السائق:", error);
+    console.error("Error in updating driver location:", error);
     return false;
   }
 }
 
-// بدء تتبع موقع السائق
+// Start driver location tracking
 function startLocationTracking(driverId, tripId, updateInterval = 5000) {
   const intervalId = setInterval(async () => {
-    // هنا سيتم الحصول على الموقع الحالي من تطبيق Flutter
-    // في الوقت الحالي، سنستخدم موقع وهمي للاختبار
+    // This is where the current location would be obtained from the Flutter app
+    // For now, we will use a mock location for testing
     const mockLocation = {
       type: "Point",
       coordinates: [
@@ -82,7 +82,7 @@ function startLocationTracking(driverId, tripId, updateInterval = 5000) {
   return intervalId;
 }
 
-// إيقاف تتبع موقع السائق
+// Stop driver location tracking
 function stopLocationTracking(intervalId) {
   if (intervalId) {
     clearInterval(intervalId);

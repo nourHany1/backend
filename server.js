@@ -14,13 +14,13 @@ if (process.env.NODE_ENV !== "test") {
       process.env.MONGODB_URI || "mongodb://localhost:27017/ride-sharing"
     )
     .then(() => {
-      console.log("تم الاتصال بقاعدة البيانات");
+      console.log("Connected to the database");
       server.listen(PORT, () => {
-        console.log(`الخادم يعمل على المنفذ ${PORT}`);
+        console.log(`Server is running on port ${PORT}`);
       });
     })
     .catch((err) => {
-      console.error("فشل الاتصال بقاعدة البيانات", err);
+      console.error("Failed to connect to the database", err);
     });
 }
 

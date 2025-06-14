@@ -28,7 +28,7 @@ router.post(
         return res.status(400).json({ errors: errors.array() });
       }
 
-      // إنشاء طلب ركوب فقط بدون أي مطابقة
+      // Create ride request without any matching
       const newRideRequest = new RideRequest(req.body);
       await newRideRequest.save();
       res.status(202).json({
@@ -131,7 +131,7 @@ router.post(
       });
       await newRideRequest.save();
 
-      // تم إزالة منطق الذكاء الاصطناعي للمطابقة
+      // AI matching logic has been removed
       res.status(200).json({
         message: "Ride request created successfully, AI matching skipped.",
         rideRequestId: newRideRequest._id,
@@ -232,13 +232,13 @@ router.put(
   }
 );
 
-// تحديث موقع السائق
+// Update driver location
 router.post("/driver/:driverId/location", async (req, res) => {
   try {
     const { driverId } = req.params;
     const { location, tripId } = req.body;
 
-    // التأكد من وجود tripId وإرسال التحديثات لجميع الركاب
+    // Ensure tripId exists and send updates to all riders
     if (!tripId) {
       return res.status(400).json({
         success: false,
@@ -265,7 +265,7 @@ router.post("/driver/:driverId/location", async (req, res) => {
   }
 });
 
-// تحديث حالة الرحلة (Trip)
+// Update Trip status
 router.put(
   "/:tripId/status",
   [
@@ -288,20 +288,20 @@ router.put(
         return res.status(404).json({ message: "Trip not found" });
       }
 
-      const oldStatus = trip.status; // احتفظ بالحالة القديمة للمقارنة
+      const oldStatus = trip.status; // Keep old status for comparison
 
       trip.status = status;
 
-      // منطق بدء/إيقاف تتبع الموقع
+      // Logic for starting/stopping location tracking
       if (status === "in_progress" && oldStatus !== "in_progress") {
-        // ابدأ تتبع الموقع إذا كانت الرحلة قد بدأت للتو
-        // يجب أن نمرر driverId و tripId من كائن الرحلة
+        // Start location tracking if the trip has just started
+        // driverId and tripId must be passed from the trip object
         if (trip.driver) {
           const intervalId = locationService.startLocationTracking(
             trip.driver.toString(),
             trip._id.toString()
           );
-          trip.locationTrackingIntervalId = intervalId; // تخزين الـ intervalId في الرحلة
+          trip.locationTrackingIntervalId = intervalId; // Store the intervalId in the trip
         } else {
           console.warn(
             "Cannot start location tracking: Driver not found for this trip."
@@ -311,10 +311,10 @@ router.put(
         (status === "completed" || status === "cancelled") &&
         oldStatus === "in_progress"
       ) {
-        // أوقف تتبع الموقع إذا انتهت الرحلة أو ألغيت
+        // Stop location tracking if the trip is completed or cancelled
         if (trip.locationTrackingIntervalId) {
           locationService.stopLocationTracking(trip.locationTrackingIntervalId);
-          trip.locationTrackingIntervalId = undefined; // إزالة الـ intervalId
+          trip.locationTrackingIntervalId = undefined; // Remove the intervalId
         }
       }
 
